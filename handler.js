@@ -1,24 +1,49 @@
 'use strict';
+
 const AWS = require('aws-sdk');
-const resizer = require('./resizer')
+const uuid = reuire('uuid/v4');
+const Jimp = require('jimp');
+const s3 = new AWS.S3();
+const width = 200;
+const height = 200;
+const imageType = "image/png";
+const bucket = process.env.Bucket;
 
-module.exports.resizer = (event, context, cb) => {
-  const bucket = event.Records[0].s3.bucket.name;
-  const key = event.Records[0].s3.object.key;
-  console.log(event.Records[0].s3);
-  console.log(event.Records[0].s3.bucket.name);
-  console.log(event.Records[0].s3.object.key);
+module.exports.uploadImage = async (event, context) => {
+  let requestBody = JSON.parse(event.body);
+  let photoURL = requestBody.photoURL;
+  let objectId = uuid();
+  let objectKey = `resize-${width}X${height}-${objectId}.png`
 
-  resizer(bucket, key).then(() => {
-    console.log("Thumbnail was created");
-    cb(null, { message: 'The thumbnail was created' })
+  function fetchImage(url) {
+    return Jimp.read(url)
+  }
 
-  }).catch(err => {
-    console.log(err);
-    cb(err)
-  })
-};
+  function uploadToS3(data, key) {
+    return s3.putObject({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: imageType
+    }).promise()
+  }
+
+  fetchImage(photoURL)
+    .then((image) => image.resize(width, height))
+    .getBufferAsync(imageType)
+    .then(resizedBuffer => uploadToS3(resizedBuffer, objectKey))
+    .then(function (response) {
+      console.log(`Image ${objectKey} was uploaded and resized`)
+    }).catch(err => console.log(err));
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      message: `Image ${objectKey} was uploaded and resized`,
+      input: event,
+    })
+  };
+
 
   // Use this code if you don't use the http event with the LAMBDA-PROXY integration
   // return { message: 'Go Serverless v1.0! Your function executed successfully!', event };
-
+};
