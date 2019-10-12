@@ -1,20 +1,26 @@
 
-service: aws-and-s3-new 
 
+service: resizer-app # NOTE: update this with your service name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+custom:
+  bucket: getting-started-lambda-example-oo
 provider:
   name: aws
   runtime: nodejs8.10
-  stage: dev
-  region: us-east-1
+  stackName: imageUploader
+  environment: ${self:custom.bucket}
+# stage: dev
+#  region: us-east-1
 
 # you can add statements to the Lambda function's IAM Role here
-  iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-        - "s3:ListBucket"
-        - "s3:GetBucket"
-        - "s3:PutBucket"
-      Resource: "arn:aws:s3:::chainpriya/*"
+iamRoleStatements:
+  - Effect: "Allow"
+    Action:
+      - "s3:PutObject"
+    Resource: "arn:aws:s3:::${self:custom.bucket}/*"
 #    - Effect: "Allow"
 #      Action:
 #        - "s3:PutObject"
@@ -39,15 +45,12 @@ provider:
 #    - exclude-me-dir/**
 
 functions:
-  resizer:
-    handler: handler.resizer
+  uploadImage:
+    handler: handler.uploadImage
     events:
-      - s3:
-          bucket: verypriya
-          event: s3:ObjectCreated:*
-          rules:
-             - prefix: uploads/
-             - suffix: .jpg
+      - http:
+          path: upload
+          method: post
           cors: true
 #      - s3: ${env:BUCKET}
 #      - schedule: rate(10 minutes)
@@ -76,12 +79,12 @@ functions:
 #      variable2: value2
 
 # you can add CloudFormation resource templates here
-#resources:
-#  Resources:
-#    NewResource:
-#      Type: AWS::S3::Bucket
-#      Properties:
-#        BucketName: my-new-bucket
+resources:
+ Resources:
+   StorageBucket:
+     Type: AWS::S3::Bucket
+     Properties:
+       BucketName: ${self:custom.bucket}
 #  Outputs:
 #     NewOutput:
 #       Description: "Description for the output"
